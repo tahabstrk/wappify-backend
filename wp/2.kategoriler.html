@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kategoriler - WhatsApp Otomatik Mesaj</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+      /* Modal içeriği taşınca dikey kaydırılabilsin */
+    .modal {
+      align-items: flex-start;         /* Küçük ekranlarda üstten başlasın */
+      overflow-y: auto;                /* Arkaplan yerine modal alanı kaydırılabilsin */
+      padding: 20px 0;                 /* Üst-alt nefes alanı */
+    }
+
+    .modal-content {
+      max-height: 90vh;                /* Ekranın %90’ını aşmasın */
+      overflow: auto;                  /* İçerik kendi içinde scroll */
+    }
+
+    .modal-body {
+      max-height: calc(90vh - 120px);  /* header/footer düşülmüş alan */
+      overflow-y: auto;
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #121212;
+      color: white;
+      height: 100vh;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    /* Sol Menü */
+    .menu {
+      width: 50px;
+      min-width: 50px;
+      height: 100%;
+      background-color: #1e1e1e;
+      transition: width 0.3s ease;
+      position: fixed;
+      top: 0;
+      left: 0;
+      overflow: hidden;
+      border-right: 1px solid #333;
+      z-index: 1000;
+      transform: translateZ(0);
+    }
+
+    .menu.expanded {
+      width: 260px;
+    }
+
+    .menu-logo {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      display: flex;
+      align-items: center;
+      opacity: 0;
+    }
+
+    .menu-logo img {
+      width: 80px;
+      height: 80px;
+      border-radius: 8px;
+      margin-right: 8px;
+    }
+
+    .menu-logo span {
+      font-weight: bold;
+      color: #4CAF50;
+      font-size: 1.1em;
+    }
+
+    .menu.expanded .menu-logo {
+      opacity: 1;
+    }
+
+    .menu-header {
+      position: absolute;
+      top: 130px;
+      left: 15px;
+      display: flex;
+      align-items: center;
+    }
+
+    .menu-toggle {
+      font-size: 1.5em;
+      color: #4CAF50;
+      cursor: pointer;
+    }
+
+    .menu-name {
+      margin-left: 15px;
+      font-size: 1.1em;
+      font-weight: 600;
+      color: white;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .menu.expanded .menu-name {
+      opacity: 1;
+    }
+
+    .menu-content {
+      list-style: none;
+      padding: 0;
+      margin-top: 185px;
+    }
+
+    .menu-content li {
+      padding: 15px 15px;
+      display: flex;
+      align-items: center;
+      transition: background-color 0.2s;
+      border-bottom: 1px solid #333;
+      cursor: pointer;
+    }
+
+    .menu-content li:hover {
+      background-color: #2c2c2c;
+    }
+
+    .menu-content a {
+      color: white;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+
+    .menu-content a:visited {
+      color: white;
+    }
+
+    .menu-content a:hover {
+      color: #4CAF50;
+    }
+
+    .menu-content li span {
+      margin-left: 15px;
+      opacity: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 1rem;
+      max-width: 150px;
+      transition: opacity 0.3s;
+    }
+
+    .menu.expanded .menu-content li span {
+      opacity: 1;
+    }
+
+    .menu-content li i {
+      font-size: 1.3em;
+      color: #4CAF50;
+    }
+
+    .content {
+      margin-left: 50px;
+      padding: 20px;
+      background-color: #1a1a1a;
+      color: white;
+      transition: margin-left 0.3s ease;
+      min-height: 100vh;
+    }
+
+    .content.shifted {
+      margin-left: 260px;
+    }
+
+    @media (max-width: 768px) {
+      .menu {
+        width: 50px;
+        min-width: 50px;
+      }
+      .menu.expanded {
+        width: 200px;
+      }
+      .content {
+        margin-left: 50px;
+      }
+      .content.shifted {
+        margin-left: 200px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .menu {
+        width: 45px;
+      }
+      .menu.expanded {
+        width: 180px;
+      }
+      .content {
+        margin-left: 45px;
+      }
+      .content.shifted {
+        margin-left: 180px;
+      }
+    }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 99;
+    }
+
+    .overlay.active {
+      display: block;
+    }
+
+    /* Kategori Özel Stiller */
+    h1 {
+      color: #4CAF50;
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+
+    .clickable-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      user-select: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background-color: #2c2c2c;
+      width: fit-content;
+      margin-bottom: 20px;
+    }
+
+    .clickable-group:hover {
+      background-color: #3c3c3c;
+    }
+
+    .round-button {
+      width: 44px;
+      height: 44px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      font-size: 20px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .label-text {
+      font-size: 16px;
+      color: white;
+      font-weight: 500;
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background-color: #2c2c2c;
+      width: 90%;
+      max-width: 500px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 18px 20px;
+      background-color: #4CAF50;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 28px;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      color: #ccc;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background-color: #1e1e1e;
+      color: white;
+      font-size: 15px;
+    }
+
+    .color-picker {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .color-option {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 3px solid #555;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .color-option:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+    }
+
+    .color-option.selected {
+      border: 3px solid white !important;
+      transform: scale(1.2);
+      outline: 2px solid #000;
+    }
+
+    .modal-footer {
+      padding: 16px 20px;
+      text-align: right;
+      border-top: 1px solid #444;
+    }
+
+    .btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background-color: #4CAF50;
+      color: white;
+    }
+
+    .btn-secondary {
+      background-color: #555;
+      color: white;
+      margin-right: 8px;
+    }
+
+    /* Kategori Listesi */
+    .category-item {
+      background-color: #2c2c2c;
+      padding: 16px;
+      margin-bottom: 12px;
+      border-radius: 12px;
+      border-left: 5px solid #4CAF50;
+    }
+
+    .category-item h3 {
+      margin: 0 0 6px 0;
+      font-size: 17px;
+      color: #ddd;
+    }
+
+    .category-item p {
+      color: #aaa;
+      font-size: 14px;
+      margin: 4px 0;
+    }
+
+    .category-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .btn-danger {
+      background-color: #e53935;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SOL MENÜ -->
+  <div class="menu" id="sidebar">
+    <div class="menu-logo">
+      <img src="W_Appify-removebg-preview.png" alt="Logo">
+      <span>W'Appify</span>
+    </div>
+    <div class="menu-header">
+      <div class="menu-toggle" id="menuToggle">
+        <i class="fas fa-bars"></i>
+      </div>
+      <div class="menu-name">Menü</div>
+    </div>
+    <ul class="menu-content">
+      <li><a href="1.anasayfa.html"><i class="fas fa-home"></i> <span>Ana Sayfa</span></a></li>
+      <li class="active"><a href="2.kategoriler.html"><i class="fas fa-list"></i> <span>Kategoriler</span></a></li>
+      <li><a href="3.kişiler.html"><i class="fas fa-address-book"></i> <span>Kişiler</span></a></li>
+      <li><a href="4.mesaj-şablonları.html"><i class="fas fa-comment-dots"></i> <span>Mesaj Şablonları</span></a></li>
+      <li><a href="5.zamanlayıcı.html"><i class="fas fa-clock"></i> <span>Gönder</span></a></li>
+      <li><a href="5.zamanlayıcı.html"><i class="fas fa-bell"></i> <span>Bildirimler</span></a></li>
+      <li><a href="6.login.html"><i class="fas fa-sign-out-alt"></i> <span>Çıkış</span></a></li>
+    </ul>
+  </div>
+
+  <div class="overlay" id="overlay"></div>
+
+  <div class="content" id="mainContent">
+    <h1>🗂️ Kategoriler</h1>
+
+    <div class="clickable-group" onclick="acKategoriModal()">
+      <button class="round-button">+</button>
+      <span class="label-text">Yeni Kategori Ekle</span>
+    </div>
+
+    <div id="kategoriListesi">
+      <p><i>Henüz kategori eklenmemiş.</i></p>
+    </div>
+
+    <!-- Modal -->
+    <div id="kategoriModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span>Yeni Kategori Oluştur</span>
+          <button class="modal-close" onclick="kapatKategoriModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="kategoriForm">
+            <div class="form-group">
+              <label for="kategoriAd">Kategori Adı</label>
+              <input type="text" id="kategoriAd" placeholder="Örn: Aile, İş, Arkadaşlar" required>
+            </div>
+
+            <div class="form-group">
+              <label>Renk Seç</label>
+              <div class="color-picker" id="colorPicker">
+                <div class="color-option" data-color="#ff5252" style="background-color: #ff5252;"></div>
+                <div class="color-option" data-color="#ffab40" style="background-color: #ffab40;"></div>
+                <div class="color-option" data-color="#64dd17" style="background-color: #64dd17;"></div>
+                <div class="color-option" data-color="#29b6f6" style="background-color: #29b6f6;"></div>
+                <div class="color-option" data-color="#7c4dff" style="background-color: #7c4dff;"></div>
+                <div class="color-option" data-color="#4CAF50" style="background-color: #4CAF50;"></div>
+              </div>
+              <input type="hidden" id="kategoriRenk" value="#4CAF50">
+            </div>
+
+            <div class="form-group">
+              <label for="aciklama">Açıklama</label>
+              <textarea id="aciklama" placeholder="Bu kategori ne için kullanılacak?"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="kapatKategoriModal()">İptal</button>
+          <button class="btn btn-primary" onclick="kategoriKaydet()">Oluştur</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- Modal Fonksiyonları ---
+    function acKategoriModal() {
+      document.getElementById('kategoriModal').style.display = 'flex';
+    }
+
+    function kapatKategoriModal() {
+      document.getElementById('kategoriModal').style.display = 'none';
+    }
+
+    // Renk seçici
+    document.querySelectorAll('.color-option').forEach(option => {
+      option.addEventListener('click', function () {
+        document.querySelectorAll('.color-option').forEach(o => o.classList.remove('selected'));
+        this.classList.add('selected');
+        document.getElementById('kategoriRenk').value = this.getAttribute('data-color');
+      });
+    });
+
+    // Varsayılan seçili
+    document.querySelector('.color-option[data-color="#4CAF50"]').classList.add('selected');
+
+    // Kategori Kaydet
+    function kategoriKaydet() {
+      const ad = document.getElementById('kategoriAd').value.trim();
+      if (!ad) {
+        alert("Kategori adı gereklidir!");
+        return;
+      }
+
+      const renk = document.getElementById('kategoriRenk').value;
+      const aciklama = document.getElementById('aciklama').value || "Yok";
+
+      const kategori = { ad, renk, aciklama, tarih: new Date().toLocaleString() };
+
+      let kategoriler = JSON.parse(localStorage.getItem('kategoriler')) || [];
+      kategoriler.push(kategori);
+      localStorage.setItem('kategoriler', JSON.stringify(kategoriler));
+
+      alert(`✅ "${ad}" kategorisi oluşturuldu!`);
+      document.getElementById('kategoriForm').reset();
+      document.querySelector('.color-option.selected').classList.remove('selected');
+      document.querySelector('.color-option[data-color="#4CAF50"]').classList.add('selected');
+      document.getElementById('kategoriRenk').value = "#4CAF50";
+      kapatKategoriModal();
+      gosterKategoriler(); // ✅ Liste yenileniyor
+    }
+
+    // Kategorileri Listele
+    function gosterKategoriler() {
+      const list = document.getElementById('kategoriListesi');
+      list.innerHTML = '';
+
+      const kategoriler = JSON.parse(localStorage.getItem('kategoriler')) || [];
+
+      if (kategoriler.length === 0) {
+        list.innerHTML = '<p><i>Henüz kategori eklenmemiş.</i></p>';
+        return;
+      }
+
+      kategoriler.forEach((kat, index) => {
+        const div = document.createElement('div');
+        div.className = 'category-item';
+        div.style.borderLeftColor = kat.renk;
+
+        div.innerHTML = `
+          <h3>${kat.ad}</h3>
+          <p>${kat.aciklama !== "Yok" ? kat.aciklama : '<i>Açıklama yok</i>'}</p>
+          <div class="category-actions">
+            <button class="btn btn-secondary" onclick="silKategori(${index})">Sil</button>
+          </div>
+        `;
+
+        list.appendChild(div);
+      });
+    }
+
+    // Kategori Sil
+    function silKategori(index) {
+      if (confirm("Bu kategoriyi silmek istediğinize emin misiniz?")) {
+        let kategoriler = JSON.parse(localStorage.getItem('kategoriler')) || [];
+        kategoriler.splice(index, 1);
+        localStorage.setItem('kategoriler', JSON.stringify(kategoriler));
+        gosterKategoriler(); // ✅ Liste yenileniyor
+      }
+    }
+
+    // --- Menü JS ---
+    const sidebar = document.getElementById('sidebar');
+    const menuToggle = document.getElementById('menuToggle');
+    const mainContent = document.getElementById('mainContent');
+    const overlay = document.getElementById('overlay');
+
+    let touchStartX = 0;
+
+    menuToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMenu();
+    });
+
+    overlay.addEventListener('click', () => {
+      toggleMenu();
+    });
+
+    document.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        touchStartX = e.touches[0].clientX;
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+      if (e.changedTouches.length === 0) return;
+      const touchEndX = e.changedTouches[0].clientX;
+      const diff = touchStartX - touchEndX;
+
+      if (touchStartX < 60) {
+        if (diff > 50) {
+          openMenu();
+        }
+      } else if (diff < -50 && sidebar.classList.contains('expanded')) {
+        closeMenu();
+      }
+    }, { passive: true });
+
+    function toggleMenu() {
+      const isExpanded = sidebar.classList.contains('expanded');
+      if (isExpanded) {
+        closeMenu();
+      } else {
+        openMenu();
+      }
+    }
+
+    function openMenu() {
+      sidebar.classList.add('expanded');
+      mainContent.classList.add('shifted');
+      overlay.classList.add('active');
+    }
+
+    function closeMenu() {
+      sidebar.classList.remove('expanded');
+      mainContent.classList.remove('shifted');
+      overlay.classList.remove('active');
+    }
+
+    function checkScreenSize() {
+      if (window.innerWidth > 768) {
+        openMenu();
+      } else {
+        closeMenu();
+      }
+    }
+
+    // ✅ Sayfa yüklendiğinde kategorileri göster
+    window.onload = () => {
+      checkScreenSize();
+      gosterKategoriler();
+    };
+
+    window.addEventListener('resize', checkScreenSize);
+  </script>
+</body>
+</html>

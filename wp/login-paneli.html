@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>W_Appify</title>
+
+  <!-- İsteğe bağlı yerel font tanımları (varsa dosyalar kullanılacak) -->
+  <style>
+    @font-face {
+      font-family: 'helvetica';
+      font-style: normal;
+      font-weight: 400;
+      src: url('fonts/Inter-Regular.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'helvetica';
+      font-style: normal;
+      font-weight: 700;
+      src: url('fonts/Kalam-Bold.woff2') format('woff2');
+    }
+
+    :root{
+      --bg-start: #CBCBCB;
+      --bg-end: #006039;
+      --card-bg: #F2F2F2CC;
+      --text: #174D38;
+      --muted: #4D1717;
+      --primary: #174D38;
+      --secondary: #174D38;
+      --ring: rgba(23,77,56,0.35);
+      --shadow: 17 23 41 / 0.18;
+    }
+
+    * { box-sizing: border-box }
+    html, body { height: 100% }
+
+    body{
+      background: linear-gradient(135deg, rgba(203,203,203,.95) 0%, rgba(23,77,56,.95) 100%);
+      margin:0;
+      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: clamp(16px, 3vw, 32px);
+    }
+
+    .card{
+      width: 100%;
+      max-width: 400px;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px) saturate(120%);
+      -webkit-backdrop-filter: blur(16px) saturate(120%);
+      border: 1px solid rgba(0,0,0,0.1);
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(var(--shadow));
+      padding: clamp(20px, 4vw, 28px);
+    }
+
+    .brand{
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      font-size: 1.6rem;
+      font-weight: bold;
+      color: var(--secondary);
+    }
+    .brand i { color: #25D366; font-size: 1.8rem; }
+    .brand-title{
+      font-family: 'Kalam', 'helvetica', 'Times New Roman', Times, serif;
+      font-weight: 600;
+      font-size: clamp(25px, 3.2vw, 6px);
+    }
+
+    .subtitle{ margin-top: -2px; color: var(--muted); font-size: .95rem; }
+
+    form{ display: grid; gap: 20px; margin-top: 20px; }
+    .field{ display: grid; gap: 8px; }
+    label{ font-size: .9rem; color: var(--muted); }
+
+    .input{
+      width: 100%;
+      border: 1px solid #CBCBCB;
+      background: #fff;
+      border-radius: 12px;
+      padding: 12px 15px;
+      font-size: 1rem;
+      outline: none;
+      transition: box-shadow .2s ease, border-color .2s ease;
+    }
+    .input:focus{
+      border-color: var(--primary);
+      box-shadow: 0 0 0 10px var(--ring);
+    }
+
+    .password-wrap{ position: relative; }
+    .toggle-btn{
+      position: absolute;
+      right: 8px; bottom: 11px;
+      border: 0; background: transparent; padding: 4px; border-radius: 8px;
+      cursor: pointer; line-height: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .toggle-btn svg{ pointer-events: none; }
+
+    .row{ display: flex; align-items: center; justify-content: space-between; margin-top: 2px; }
+    .helper{ font-size: .9rem; color: var(--muted); }
+
+    .btn{
+      width: 100%;
+      border: 0; border-radius: 14px;
+      padding: 12px 16px; font-weight: 600; font-size: 1rem;
+      background: var(--primary);
+      color: #fff; cursor: pointer;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.2);
+    }
+    .btn:hover{ filter: brightness(1.05); }
+    .links{ margin-top: 12px; text-align: center; }
+    .links a{ color: var(--secondary); text-decoration: none; font-weight: 500; }
+    .links a:hover{ text-decoration: underline }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <header class="brand">
+      <i class="fa-brands fa-whatsapp" style="font-size: 30px;"></i>
+      <h1 class="brand-title">W'Appify</h1>
+    </header>
+
+    <!-- Backend kontrollü giriş -->
+    <form method="POST" action="/login">
+      <div class="field">
+        <label for="username">Kullanıcı Adı</label>
+        <input class="input" id="username" name="username" type="text"
+               placeholder="kullanıcı adı giriniz" required />
+      </div>
+
+      <div class="field password-wrap">
+        <label for="password">Şifre</label>
+        <input class="input" id="password" name="password" type="password"
+               placeholder="••••••••" required />
+        <!-- Şifre göster/gizle -->
+        <button type="button" class="toggle-btn" aria-label="Şifreyi göster / gizle">
+          <svg id="eye" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 20" width="42" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="row">
+        <label class="helper"><input type="checkbox" name="remember" /> Beni hatırla...</label>
+        <a class="helper" href="#">Şifremi unuttum</a>
+      </div>
+
+      <button class="btn" type="submit">Giriş Yap</button>
+    </form>
+  </main>
+
+  <script>
+    // Şifre göster/gizle (null güvenli)
+    (function(){
+      const toggleBtn = document.querySelector('.toggle-btn');
+      const pwdInput  = document.getElementById('password');
+      const eyeIcon   = document.getElementById('eye');
+      if (!toggleBtn || !pwdInput || !eyeIcon) return;
+      toggleBtn.addEventListener('click', () => {
+        const isPassword = pwdInput.getAttribute('type') === 'password';
+        pwdInput.setAttribute('type', isPassword ? 'text' : 'password');
+        eyeIcon.innerHTML = isPassword
+          ? '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.81 21.81 0 0 1-5.12 6.98M1 1l22 22"/>'
+          : '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>';
+      });
+    })();
+  </script>
+</body>
+</html>

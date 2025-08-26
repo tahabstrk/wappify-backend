@@ -1,0 +1,17 @@
+{
+  "first_touch": {
+    "channel": "whatsapp",
+    "type": "text",
+    "text": "Merhaba {contact_name}, ben {your_name}. {company_name} için logo baskılı iş kıyafetleri üretiyoruz. {sector} sektöründe çalışıyoruz ve {city} çevresinde teslimat yapıyoruz. İhtiyacınız varsa adet ve model bilgisini paylaşırsanız aynı gün teklif gönderebilirim."
+  },
+  "follow_up_2d": {
+    "channel": "whatsapp",
+    "type": "text",
+    "text": "Merhaba {contact_name}, önceki mesajımı iletmiştim. İş kıyafeti ihtiyacınız için hala yardımcı olabiliriz. Adet ve model var mı aklınızda?"
+  },
+  "opt_out": {
+    "channel": "whatsapp",
+    "type": "text",
+    "text": "İletişim almak istemezseniz 'DUR' yazabilirsiniz."
+  }
+}

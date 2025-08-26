@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mesaj Şablonları - WhatsApp Otomatik Mesaj</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+      /* Modal içeriği taşınca dikey kaydırılabilsin */
+    .modal {
+      align-items: flex-start;         /* Küçük ekranlarda üstten başlasın */
+      overflow-y: auto;                /* Arkaplan yerine modal alanı kaydırılabilsin */
+      padding: 20px 0;                 /* Üst-alt nefes alanı */
+    }
+
+    .modal-content {
+      max-height: 90vh;                /* Ekranın %90’ını aşmasın */
+      overflow: auto;                  /* İçerik kendi içinde scroll */
+    }
+
+    .modal-body {
+      max-height: calc(90vh - 120px);  /* header/footer düşülmüş alan */
+      overflow-y: auto;
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #121212;
+      color: white;
+      height: 100vh;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    /* Sol Menü */
+    .menu {
+      width: 50px;
+      min-width: 50px;
+      height: 100%;
+      background-color: #1e1e1e;
+      transition: width 0.3s ease;
+      position: fixed;
+      top: 0;
+      left: 0;
+      overflow: hidden;
+      border-right: 1px solid #333;
+      z-index: 1000;
+      transform: translateZ(0);
+    }
+
+    .menu.expanded {
+      width: 260px;
+    }
+
+    .menu-logo {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      display: flex;
+      align-items: center;
+      opacity: 0;
+    }
+
+    .menu-logo img {
+      width: 80px;
+      height: 80px;
+      border-radius: 8px;
+      margin-right: 8px;
+    }
+
+    .menu-logo span {
+      font-weight: bold;
+      color: #4CAF50;
+      font-size: 1.1em;
+    }
+
+    .menu.expanded .menu-logo {
+      opacity: 1;
+    }
+
+    .menu-header {
+      position: absolute;
+      top: 130px;
+      left: 15px;
+      display: flex;
+      align-items: center;
+    }
+
+    .menu-toggle {
+      font-size: 1.5em;
+      color: #4CAF50;
+      cursor: pointer;
+    }
+
+    .menu-name {
+      margin-left: 15px;
+      font-size: 1.1em;
+      font-weight: 600;
+      color: white;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .menu.expanded .menu-name {
+      opacity: 1;
+    }
+
+    .menu-content {
+      list-style: none;
+      padding: 0;
+      margin-top: 185px;
+    }
+
+    .menu-content li {
+      padding: 15px 15px;
+      display: flex;
+      align-items: center;
+      transition: background-color 0.2s;
+      border-bottom: 1px solid #333;
+      cursor: pointer;
+    }
+
+    .menu-content li:hover {
+      background-color: #2c2c2c;
+    }
+
+    .menu-content a {
+      color: white;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+
+    .menu-content a:visited {
+      color: white;
+    }
+
+    .menu-content a:hover {
+      color: #4CAF50;
+    }
+
+    .menu-content li span {
+      margin-left: 15px;
+      opacity: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 1rem;
+      max-width: 150px;
+      transition: opacity 0.3s;
+    }
+
+    .menu.expanded .menu-content li span {
+      opacity: 1;
+    }
+
+    .menu-content li i {
+      font-size: 1.3em;
+      color: #4CAF50;
+    }
+
+    .content {
+      margin-left: 50px;
+      padding: 20px;
+      background-color: #1a1a1a;
+      color: white;
+      transition: margin-left 0.3s ease;
+      min-height: 100vh;
+    }
+
+    .content.shifted {
+      margin-left: 260px;
+    }
+
+    @media (max-width: 768px) {
+      .menu {
+        width: 50px;
+        min-width: 50px;
+      }
+      .menu.expanded {
+        width: 200px;
+      }
+      .content {
+        margin-left: 50px;
+      }
+      .content.shifted {
+        margin-left: 200px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .menu {
+        width: 45px;
+      }
+      .menu.expanded {
+        width: 180px;
+      }
+      .content {
+        margin-left: 45px;
+      }
+      .content.shifted {
+        margin-left: 180px;
+      }
+    }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 99;
+    }
+
+    .overlay.active {
+      display: block;
+    }
+
+    /* Şablon Özel Stiller */
+    h1 {
+      color: #4CAF50;
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+
+    .clickable-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      user-select: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background-color: #2c2c2c;
+      width: fit-content;
+      margin-bottom: 20px;
+    }
+
+    .clickable-group:hover {
+      background-color: #3c3c3c;
+    }
+
+    .round-button {
+      width: 44px;
+      height: 44px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      font-size: 20px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .label-text {
+      font-size: 16px;
+      color: white;
+      font-weight: 500;
+    }
+
+    .filter-bar {
+      margin: 20px 0;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .filter-bar input,
+    .filter-bar select {
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background-color: #1e1e1e;
+      color: white;
+      font-size: 14px;
+    }
+
+    .template-card {
+      background-color: #2c2c2c;
+      padding: 16px;
+      margin-bottom: 12px;
+      border-radius: 12px;
+      border-left: 5px solid #4CAF50;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .template-card h3 {
+      margin: 0 0 6px 0;
+      font-size: 17px;
+      color: #ddd;
+    }
+
+    .template-content {
+      font-size: 15px;
+      color: #aaa;
+      margin: 6px 0;
+      line-height: 1.5;
+    }
+
+    .template-meta {
+      font-size: 13px;
+      color: #888;
+      margin-top: 8px;
+    }
+
+    .variable-hint {
+      font-size: 13px;
+      color: white;
+      background-color: #4CAF50;
+      padding: 8px;
+      border-radius: 6px;
+      margin-top: 8px;
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background-color: #2c2c2c;
+      width: 90%;
+      max-width: 600px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-header {
+      padding: 18px 20px;
+      background-color: #4CAF50;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 28px;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      color: #ccc;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background-color: #1e1e1e;
+      color: white;
+      font-size: 15px;
+    }
+
+    .form-group textarea {
+      min-height: 100px;
+    }
+
+    /* Resim Ekle Butonu */
+    .image-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .image-btn:hover {
+      background-color: #388E3C;
+    }
+
+    #resimOnizleme img {
+      max-width: 100%;
+      max-height: 150px;
+      border-radius: 8px;
+      margin-top: 6px;
+      border: 1px solid #444;
+    }
+
+    .modal-footer {
+      padding: 16px 20px;
+      text-align: right;
+      border-top: 1px solid #444;
+    }
+
+    .btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background-color: #075E54;
+      color: white;
+    }
+
+    .btn-secondary {
+      background-color: #555;
+      color: white;
+      margin-right: 8px;
+    }
+
+    .btn-danger {
+      background-color: #e53935;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SOL MENÜ -->
+  <div class="menu" id="sidebar">
+    <div class="menu-logo">
+      <img src="W_Appify-removebg-preview.png" alt="Logo">
+      <span>W'Appify</span>
+    </div>
+    <div class="menu-header">
+      <div class="menu-toggle" id="menuToggle">
+        <i class="fas fa-bars"></i>
+      </div>
+      <div class="menu-name">Menü</div>
+    </div>
+    <ul class="menu-content">
+      <li><a href="1.anasayfa.html"><i class="fas fa-home"></i> <span>Ana Sayfa</span></a></li>
+      <li><a href="2.kategoriler.html"><i class="fas fa-list"></i> <span>Kategoriler</span></a></li>
+      <li><a href="3.kişiler.html"><i class="fas fa-address-book"></i> <span>Kişiler</span></a></li>
+      <li class="active"><a href="4.mesaj-şablonları.html"><i class="fas fa-comment-dots"></i> <span>Mesaj Şablonları</span></a></li>
+      <li><a href="5.zamanlayıcı.html"><i class="fas fa-clock"></i> <span>Gönder</span></a></li>
+      <li><a href="5.zamanlayıcı.html"><i class="fas fa-bell"></i> <span>Bildirimler</span></a></li>
+      <li><a href="6.login.html"><i class="fas fa-sign-out-alt"></i> <span>Çıkış</span></a></li>
+    </ul>
+  </div>
+
+  <div class="overlay" id="overlay"></div>
+
+  <div class="content" id="mainContent">
+    <h1>✉️ Mesaj Şablonları</h1>
+
+    <div class="clickable-group" onclick="acModal()">
+      <button class="round-button">+</button>
+      <span class="label-text">Yeni Şablon Ekle</span>
+    </div>
+
+    <div class="filter-bar">
+      <input type="text" id="searchInput" placeholder="Şablon ara..." oninput="filtrele()">
+      <select id="kategoriFiltre" onchange="filtrele()">
+        <option value="">Tüm Kategoriler</option>
+      </select>
+    </div>
+
+    <div id="templateList">
+      <p><i>Henüz şablon eklenmemiş.</i></p>
+    </div>
+
+    <!-- Modal -->
+    <div id="templateModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span id="modalTitle">Yeni Şablon Ekle</span>
+          <button class="modal-close" onclick="kapatModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="templateForm">
+            <input type="hidden" id="templateIndex">
+
+            <div class="form-group">
+              <label for="baslik">Şablon Başlığı</label>
+              <input type="text" id="baslik" placeholder="Doğum Günü, İş Hatırlatması, vs." required>
+            </div>
+
+            <div class="form-group">
+              <label for="kategori">Kategori</label>
+              <select id="kategori" required>
+                <option value="">-- Kategori Seçin --</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="mesaj">Mesaj İçeriği</label>
+              <div style="position: relative;">
+                <textarea id="mesaj" placeholder="Merhaba {isim}, bugün özel bir gün!" required></textarea>
+                <button type="button" class="image-btn" onclick="document.getElementById('resimInput').click()">📷 Resim Ekle</button>
+              </div>
+              <input type="file" id="resimInput" accept="image/*" style="display: none;" onchange="resimYukle(this)">
+              <div id="resimOnizleme"></div>
+              <div class="variable-hint">
+                <strong>Dinamik Değişkenler:</strong> 
+                <code>{isim}</code>, <code>{tarih}</code>, <code>{kategori}</code>, <code>{telefon}</code>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="aciklama">Açıklama (Opsiyonel)</label>
+              <textarea id="aciklama" placeholder="Bu şablon ne zaman kullanılmalı?"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="kapatModal()">İptal</button>
+          <button class="btn btn-danger" id="deleteBtn" style="display:none;" onclick="sil()">Sil</button>
+          <button class="btn btn-primary" onclick="kaydet()">Kaydet</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let secilenResim = null; // Resim base64 olarak burada tutulur
+
+    // --- Modal Kontrolleri ---
+    function acModal(index = null) {
+      const modal = document.getElementById('templateModal');
+      document.getElementById('templateForm').reset();
+      sifirlaResim(); // Her açılışta resmi temizle
+
+      if (index !== null) {
+        const sablonlar = JSON.parse(localStorage.getItem('sablonlar')) || [];
+        const s = sablonlar[index];
+        document.getElementById('templateIndex').value = index;
+        document.getElementById('baslik').value = s.baslik;
+        document.getElementById('kategori').value = s.kategori;
+        document.getElementById('mesaj').value = s.mesaj;
+        document.getElementById('aciklama').value = s.aciklama || '';
+
+        // Eski resim varsa göster
+        if (s.resim) {
+          secilenResim = s.resim;
+          document.getElementById('resimOnizleme').innerHTML = `<img src="${s.resim}" alt="Resim">`;
+        }
+
+        document.getElementById('modalTitle').textContent = 'Şablonu Düzenle';
+        document.getElementById('deleteBtn').style.display = 'inline-block';
+      } else {
+        document.getElementById('modalTitle').textContent = 'Yeni Şablon Ekle';
+        document.getElementById('deleteBtn').style.display = 'none';
+      }
+
+      modal.style.display = 'flex';
+    }
+
+    function kapatModal() {
+      document.getElementById('templateModal').style.display = 'none';
+    }
+
+    // --- Resim Yükleme ---
+    function resimYukle(input) {
+      const file = input.files[0];
+      if (!file) return;
+
+      // Boyut kontrolü (2MB üstü engelle)
+      if (file.size > 2 * 1024 * 1024) {
+        alert("Resim 2MB'dan büyük olamaz.");
+        input.value = "";
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        secilenResim = e.target.result; // base64
+        document.getElementById('resimOnizleme').innerHTML = `<img src="${secilenResim}" alt="Resim Önizleme">`;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // --- Resmi Sıfırla ---
+    function sifirlaResim() {
+      secilenResim = null;
+      document.getElementById('resimOnizleme').innerHTML = '';
+      document.getElementById('resimInput').value = '';
+    }
+
+    // --- Kategorileri Yükle ---
+    function kategorileriYukle() {
+      const select = document.getElementById('kategori');
+      const filtre = document.getElementById('kategoriFiltre');
+      select.innerHTML = '<option value="">-- Kategori Seçin --</option>';
+      filtre.innerHTML = '<option value="">Tüm Kategoriler</option>';
+
+      const kategoriler = JSON.parse(localStorage.getItem('kategoriler')) || [];
+      kategoriler.forEach(k => {
+        const opt1 = document.createElement('option');
+        opt1.value = k.ad;
+        opt1.textContent = k.ad;
+        select.appendChild(opt1);
+
+        const opt2 = document.createElement('option');
+        opt2.value = k.ad;
+        opt2.textContent = k.ad;
+        filtre.appendChild(opt2);
+      });
+    }
+
+    // --- Şablon Kaydet ---
+    function kaydet() {
+      const baslik = document.getElementById('baslik').value.trim();
+      const kategori = document.getElementById('kategori').value;
+      const mesaj = document.getElementById('mesaj').value.trim();
+      const aciklama = document.getElementById('aciklama').value;
+
+      if (!baslik || !kategori || !mesaj) {
+        alert("Tüm zorunlu alanları doldurun!");
+        return;
+      }
+
+      const sablon = { 
+        baslik, 
+        kategori, 
+        mesaj, 
+        aciklama: aciklama || '', 
+        tarih: new Date().toLocaleString(),
+        resim: secilenResim // ✅ Resim eklendi
+      };
+
+      const sablonlar = JSON.parse(localStorage.getItem('sablonlar')) || [];
+      const index = document.getElementById('templateIndex').value;
+
+      if (index === '') {
+        sablonlar.push(sablon);
+        alert(`✅ "${baslik}" şablonu eklendi!`);
+      } else {
+        sablonlar[index] = sablon;
+        alert(`✅ "${baslik}" şablonu güncellendi!`);
+      }
+
+      localStorage.setItem('sablonlar', JSON.stringify(sablonlar));
+      kapatModal();
+      goster();
+    }
+
+    // --- Şablon Sil ---
+    function sil() {
+      const index = document.getElementById('templateIndex').value;
+      const sablonlar = JSON.parse(localStorage.getItem('sablonlar')) || [];
+      const baslik = sablonlar[index].baslik;
+
+      if (confirm(`"${baslik}" şablonunu silmek istediğinize emin misiniz?`)) {
+        sablonlar.splice(index, 1);
+        localStorage.setItem('sablonlar', JSON.stringify(sablonlar));
+        kapatModal();
+        goster();
+      }
+    }
+
+    // --- Şablonları Listele ---
+    function goster() {
+      const list = document.getElementById('templateList');
+      list.innerHTML = '';
+
+      const sablonlar = JSON.parse(localStorage.getItem('sablonlar')) || [];
+      const arama = (document.getElementById('searchInput')?.value || '').toLowerCase();
+      const filtreKategori = document.getElementById('kategoriFiltre')?.value;
+
+      if (sablonlar.length === 0) {
+        list.innerHTML = '<p><i>Henüz şablon eklenmemiş.</i></p>';
+        return;
+      }
+
+      let gosterilen = 0;
+      sablonlar.forEach((s, index) => {
+        if (!s.baslik.toLowerCase().includes(arama) && !s.mesaj.toLowerCase().includes(arama)) return;
+        if (filtreKategori && s.kategori !== filtreKategori) return;
+
+        gosterilen++;
+
+        const card = document.createElement('div');
+        card.className = 'template-card';
+        card.onclick = () => acModal(index);
+
+        const aciklama = s.aciklama ? `<div class="template-meta">💡 ${s.aciklama}</div>` : '';
+        const resimGoster = s.resim ? `<div style="margin: 8px 0;"><img src="${s.resim}" style="max-width: 100%; max-height: 100px; border-radius: 6px;"></div>` : '';
+
+        card.innerHTML = `
+          <h3>${s.baslik}</h3>
+          <div class="template-content">${s.mesaj.replace(/\n/g, '<br>')}</div>
+          ${resimGoster}
+          <div class="template-meta">
+            🏷️ <span style="color:#4CAF50">${s.kategori}</span> • 📅 ${s.tarih}
+          </div>
+          ${aciklama}
+        `;
+
+        list.appendChild(card);
+      });
+
+      if (gosterilen === 0) {
+        list.innerHTML = '<p><i>Eşleşen şablon bulunamadı.</i></p>';
+      }
+    }
+
+    // --- Filtreleme ---
+    function filtrele() {
+      goster();
+    }
+
+    // --- Menü JS ---
+    const sidebar = document.getElementById('sidebar');
+    const menuToggle = document.getElementById('menuToggle');
+    const mainContent = document.getElementById('mainContent');
+    const overlay = document.getElementById('overlay');
+
+    let touchStartX = 0;
+
+    menuToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMenu();
+    });
+
+    overlay.addEventListener('click', () => {
+      toggleMenu();
+    });
+
+    document.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        touchStartX = e.touches[0].clientX;
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+      if (e.changedTouches.length === 0) return;
+      const touchEndX = e.changedTouches[0].clientX;
+      const diff = touchStartX - touchEndX;
+
+      if (touchStartX < 60) {
+        if (diff > 50) {
+          openMenu();
+        }
+      } else if (diff < -50 && sidebar.classList.contains('expanded')) {
+        closeMenu();
+      }
+    }, { passive: true });
+
+    function toggleMenu() {
+      const isExpanded = sidebar.classList.contains('expanded');
+      if (isExpanded) {
+        closeMenu();
+      } else {
+        openMenu();
+      }
+    }
+
+    function openMenu() {
+      sidebar.classList.add('expanded');
+      mainContent.classList.add('shifted');
+      overlay.classList.add('active');
+    }
+
+    function closeMenu() {
+      sidebar.classList.remove('expanded');
+      mainContent.classList.remove('shifted');
+      overlay.classList.remove('active');
+    }
+
+    function checkScreenSize() {
+      if (window.innerWidth > 768) {
+        openMenu();
+      } else {
+        closeMenu();
+      }
+    }
+
+    window.onload = () => {
+      checkScreenSize();
+      kategorileriYukle();
+      goster();
+    };
+
+    window.addEventListener('resize', checkScreenSize);
+  </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "open_on_boot": true,
+  "min_delay_sec": 12,
+  "max_delay_sec": 24,
+  "initial_wait_sec": 25,
+  "chrome_binary": "",
+  "chrome_profile_dir":
+  "open_on_boot": true,
+  "min_delay_sec": 12,
+  "max_delay_sec": 24,
+  "initial_wait_sec": 25,
+  "chrome_binary": "",
+  "chrome_profile_dir": "",
+  "meta_access_token": "EAAG...uzun_token",
+  "wa_phone_number_id": "123456789012345",
+  "wa_business_account_id": "1234567890",
+  "default_namespace": "your_namespace"
+
+}

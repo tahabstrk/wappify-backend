@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kişiler - WhatsApp Otomatik Mesaj</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <!-- Excel Okuma için SheetJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+      /* Modal içeriği taşınca dikey kaydırılabilsin */
+    .modal {
+      align-items: flex-start;         /* Küçük ekranlarda üstten başlasın */
+      overflow-y: auto;                /* Arkaplan yerine modal alanı kaydırılabilsin */
+      padding: 20px 0;                 /* Üst-alt nefes alanı */
+    }
+
+    .modal-content {
+      max-height: 90vh;                /* Ekranın %90’ını aşmasın */
+      overflow: auto;                  /* İçerik kendi içinde scroll */
+    }
+
+    .modal-body {
+      max-height: calc(90vh - 120px);  /* header/footer düşülmüş alan */
+      overflow-y: auto;
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #121212;
+      color: white;
+      min-height: 100vh;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    /* Sol Menü */
+    .menu {
+      width: 50px;
+      min-width: 50px;
+      min-height: 100%;
+      background-color: #1e1e1e;
+      transition: width 0.3s ease;
+      position: fixed;
+      top: 0;
+      left: 0;
+      overflow: hidden;
+      border-right: 1px solid #333;
+      z-index: 1000;
+      transform: translateZ(0);
+    }
+
+    .menu.expanded {
+      width: 260px;
+    }
+
+    .menu-logo {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      display: flex;
+      align-items: center;
+      opacity: 0;
+    }
+
+    .menu-logo img {
+      width: 80px;
+      min-height: 80px;
+      border-radius: 8px;
+      margin-right: 8px;
+    }
+
+    .menu-logo span {
+      font-weight: bold;
+      color: #4CAF50;
+      font-size: 1.1em;
+    }
+
+    .menu.expanded .menu-logo {
+      opacity: 1;
+    }
+
+    .menu-header {
+      position: absolute;
+      top: 130px;
+      left: 15px;
+      display: flex;
+      align-items: center;
+    }
+
+    .menu-toggle {
+      font-size: 1.5em;
+      color: #4CAF50;
+      cursor: pointer;
+    }
+
+    .menu-name {
+      margin-left: 15px;
+      font-size: 1.1em;
+      font-weight: 600;
+      color: white;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .menu.expanded .menu-name {
+      opacity: 1;
+    }
+
+    .menu-content {
+      list-style: none;
+      padding: 0;
+      margin-top: 185px;
+    }
+
+    .menu-content li {
+      padding: 15px 15px;
+      display: flex;
+      align-items: center;
+      transition: background-color 0.2s;
+      border-bottom: 1px solid #333;
+      cursor: pointer;
+    }
+
+    .menu-content li:hover {
+      background-color: #2c2c2c;
+    }
+
+    .menu-content a {
+      color: white;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+
+    .menu-content a:visited {
+      color: white;
+    }
+
+    .menu-content a:hover {
+      color: #4CAF50;
+    }
+
+    .menu-content li span {
+      margin-left: 15px;
+      opacity: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 1rem;
+      max-width: 150px;
+      transition: opacity 0.3s;
+    }
+
+    .menu.expanded .menu-content li span {
+      opacity: 1;
+    }
+
+    .menu-content li i {
+      font-size: 1.3em;
+      color: #4CAF50;
+    }
+
+    .content {
+      margin-left: 50px;
+      padding: 20px;
+      background-color: #1a1a1a;
+      color: white;
+      transition: margin-left 0.3s ease;
+      min-height: 100vh;
+    }
+
+    .content.shifted {
+      margin-left: 260px;
+    }
+
+    @media (max-width: 768px) {
+      .menu {
+        width: 50px;
+        min-width: 50px;
+      }
+      .menu.expanded {
+        width: 200px;
+      }
+      .content {
+        margin-left: 50px;
+      }
+      .content.shifted {
+        margin-left: 200px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .menu {
+        width: 45px;
+      }
+      .menu.expanded {
+        width: 180px;
+      }
+      .content {
+        margin-left: 45px;
+      }
+      .content.shifted {
+        margin-left: 180px;
+      }
+    }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      min-height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 99;
+    }
+
+    .overlay.active {
+      display: block;
+    }
+
+    /* Kişiler Özel Stiller */
+    h1 {
+      color: #4CAF50;
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+
+    .top-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .search-filter {
+      display: flex;
+      gap: 10px;
+      flex: 1;
+      max-width: 600px;
+    }
+
+    .search-filter input,
+    .search-filter select {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background-color: #1e1e1e;
+      color: white;
+      font-size: 14px;
+    }
+
+    /* Modern Buton Grubu */
+    .clickable-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      user-select: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background-color: #2c2c2c;
+    }
+
+    .clickable-group:hover {
+      background-color: #3c3c3c;
+    }
+
+    .round-button {
+      width: 44px;
+      min-height: 44px;
+      background-color: #25D366;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      font-size: 20px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .label-text {
+      font-size: 16px;
+      color: white;
+      font-weight: 500;
+    }
+
+    .btn-primary {
+      background-color: #25D366;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 15px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .btn-primary:hover {
+      background-color: #128C7E;
+    }
+
+    .person-card {
+      background-color: #2c2c2c;
+      padding: 16px;
+      margin-bottom: 12px;
+      border-radius: 12px;
+      border-left: 5px solid #25D366;
+      cursor: pointer;
+    }
+
+    .person-card h3 {
+      margin: 0 0 6px 0;
+      font-size: 17px;
+      color: #ddd;
+    }
+
+    .person-info {
+      font-size: 14px;
+      color: #aaa;
+      margin-bottom: 4px;
+    }
+
+    .person-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .tag {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      color: white;
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      min-height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background-color: #2c2c2c;
+      width: 90%;
+      max-width: 520px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-header {
+      padding: 18px 20px;
+      background-color: #25D366;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 28px;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      color: #ccc;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background-color: #1e1e1e;
+      color: white;
+      font-size: 15px;
+    }
+
+    /* Kategori Checkbox Listesi */
+    #kategoriCheckboxes {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 150px;
+      overflow-y: auto;
+      padding: 8px;
+      background-color: #1e1e1e;
+      border-radius: 8px;
+      border: 1px solid #444;
+      width: 100%;
+    }
+
+    .category-checkbox-item {
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+      padding: 6px 0;
+      gap: 12px;
+      justify-content: flex-start;
+    }
+
+    .category-checkbox-item input[type="checkbox"] {
+      margin: 0;
+      transform: scale(1.1);
+      accent-color: #25D366;
+      flex-shrink: 0;
+      width: 18px;
+      min-height: 18px;
+    }
+
+    .color-dot {
+      width: 10px;
+      min-height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .category-checkbox-item label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #ddd;
+      cursor: pointer;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin: 0;
+    }
+
+    .modal-footer {
+      padding: 16px 20px;
+      text-align: right;
+      border-top: 1px solid #444;
+    }
+
+    .btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .btn-secondary {
+      background-color: #555;
+      color: white;
+      margin-right: 8px;
+    }
+
+    .btn-danger {
+      background-color: #e53935;
+    }
+
+    .excel-info {
+      font-size: 13px;
+      color: #aaa;
+      margin: 10px 0 20px 0;
+      line-height: 1.5;
+    }
+
+    .excel-info code {
+      background-color: #333;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SOL MENÜ -->
+  <div class="menu" id="sidebar">
+    <div class="menu-logo">
+      <img src="W_Appify-removebg-preview.png" alt="Logo">
+      <span>W'Appify</span>
+    </div>
+    <div class="menu-header">
+      <div class="menu-toggle" id="menuToggle">
+        <i class="fas fa-bars"></i>
+      </div>
+      <div class="menu-name">Menü</div>
+    </div>
+    <ul class="menu-content">
+      <li><a href="1.anasayfa.html"><i class="fas fa-home"></i> <span>Ana Sayfa</span></a></li>
+      <li><a href="2.kategoriler.html"><i class="fas fa-list"></i> <span>Kategoriler</span></a></li>
+      <li class="active"><a href="3.kişiler.html"><i class="fas fa-address-book"></i> <span>Kişiler</span></a></li>
+      <li><a href="4.mesaj-şablonları.html"><i class="fas fa-comment-dots"></i> <span>Mesaj Şablonları</span></a></li>
+      <li><a href="5.zamanlayıcı.html"><i class="fas fa-clock"></i> <span>Gönder</span></a></li>
+      <li><a href="5.zamanlayıcı.html"><i class="fas fa-bell"></i> <span>Bildirimler</span></a></li>
+      <li><a href="6.login.html"><i class="fas fa-sign-out-alt"></i> <span>Çıkış</span></a></li>
+    </ul>
+  </div>
+
+  <!-- Overlay -->
+  <div class="overlay" id="overlay"></div>
+
+  <!-- Ana İçerik -->
+  <div class="content" id="mainContent">
+    <h1>👥 Kişiler</h1>
+
+    <!-- Üstte Ara, Filtre ve Buton -->
+    <div class="top-actions">
+      <div class="search-filter">
+        <input type="text" id="searchInput" placeholder="İsim veya numara ara..." oninput="gosterKisiler()">
+        <select id="kategoriFiltre" onchange="gosterKisiler()">
+          <option value="">Tüm Kategoriler</option>
+        </select>
+      </div>
+
+      <!-- Butonlar -->
+      <div style="display: flex; gap: 10px;">
+        <div class="clickable-group" onclick="acKisiModal()">
+          <button class="round-button">+</button>
+          <span class="label-text">Yeni Kişi</span>
+        </div>
+
+        <button class="btn-primary" onclick="document.getElementById('excelUpload').click()">
+          📁 Excel'den Aktar
+        </button>
+      </div>
+
+      <!-- Gizli Dosya Input -->
+      <input type="file" id="excelUpload" accept=".xlsx" style="display: none;" onchange="excelYukle(this)">
+    </div>
+
+    <!-- Excel Format Bilgisi -->
+    <div class="excel-info">
+      <strong>💡 Excel Formatı:</strong><br>
+      Sütunlar: <code>Ad</code>, <code>Telefon</code>, <code>Email</code>, <code>Doğum Tarihi</code>, <code>Not</code>, <code>Kategoriler</code><br>
+      <code>Kategoriler</code> virgülle ayrılabilir: <i>Aile, Özel Gün</i><br>
+      Telefon: sadece rakamlar (örn: 5551234567)
+    </div>
+
+    <!-- Kişi Listesi -->
+    <div id="kisiListesi">
+      <p><i>Henüz kişi eklenmemiş.</i></p>
+    </div>
+
+    <!-- Modal -->
+    <div id="kisiModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span id="modalBaslik">Kişi Ekle / Düzenle</span>
+          <button class="modal-close" onclick="kapatKisiModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="kisiForm">
+            <input type="hidden" id="kisiIndex">
+
+            <div class="form-group">
+              <label for="ad">Ad Soyad</label>
+              <input type="text" id="ad" placeholder="Ali Yılmaz" required>
+            </div>
+
+            <div class="form-group">
+              <label for="telefon">Telefon Numarası</label>
+              <input type="tel" id="telefon" placeholder="+90 555 123 45 67" required>
+            </div>
+
+            <div class="form-group">
+              <label for="email">E-posta (Opsiyonel)</label>
+              <input type="email" id="email" placeholder="ali@mail.com">
+            </div>
+
+            <div class="form-group">
+              <label for="dogumTarihi">Doğum Tarihi</label>
+              <input type="date" id="dogumTarihi">
+            </div>
+
+            <div class="form-group">
+              <label>Kategoriler</label>
+              <div id="kategoriCheckboxes">
+                <!-- JS ile eklenecek -->
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="not">Not (Opsiyonel)</label>
+              <textarea id="not" placeholder="Özel günler, ilişki durumu, vs."></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="kapatKisiModal()">İptal</button>
+          <button class="btn btn-danger" id="silBtn" style="display:none;" onclick="kisiSil()">Sil</button>
+          <button class="btn btn-primary" onclick="kisiKaydet()">Kaydet</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- Modal Kontrolleri ---
+    function acKisiModal(index = null) {
+      const modal = document.getElementById('kisiModal');
+      document.getElementById('kisiForm').reset();
+
+      if (index !== null) {
+        const kisiler = JSON.parse(localStorage.getItem('kisiler')) || [];
+        const kisi = kisiler[index];
+        document.getElementById('kisiIndex').value = index;
+        document.getElementById('ad').value = kisi.ad;
+        document.getElementById('telefon').value = kisi.telefon;
+        document.getElementById('email').value = kisi.email || '';
+        document.getElementById('dogumTarihi').value = kisi.dogumTarihi || '';
+        document.getElementById('not').value = kisi.not || '';
+
+        // Seçili kategorileri işaretle
+        document.querySelectorAll('#kategoriCheckboxes input[type="checkbox"]').forEach(cb => {
+          cb.checked = (kisi.kategoriler || []).includes(cb.value);
+        });
+
+        document.getElementById('modalBaslik').textContent = 'Kişiyi Düzenle';
+        document.getElementById('silBtn').style.display = 'inline-block';
+      } else {
+        document.getElementById('kisiIndex').value = '';
+        document.getElementById('modalBaslik').textContent = 'Yeni Kişi Ekle';
+        document.getElementById('silBtn').style.display = 'none';
+      }
+
+      modal.style.display = 'flex';
+    }
+
+    function kapatKisiModal() {
+      document.getElementById('kisiModal').style.display = 'none';
+    }
+
+    // --- Excel'den Yükle ---
+    function excelYukle(input) {
+      const file = input.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+          const gecerliKisiler = [];
+          const eksikler = [];
+
+          jsonData.forEach((row, index) => {
+            const ad = row["Ad"] || row["ad"] || row["İsim"] || row["isim"];
+            const telefon = row["Telefon"] || row["telefon"] || row["Numara"];
+            const email = row["Email"] || row["email"] || row["E-posta"] || "";
+            const dogumTarihi = row["Doğum Tarihi"] || row["dogumTarihi"] || "";
+            const not = row["Not"] || "";
+            let kategoriler = row["Kategoriler"] || "";
+
+            if (!ad || !telefon) {
+              eksikler.push(`Satır ${index + 2}: Ad veya telefon eksik (${ad || "?"}, ${telefon || "?"})`);
+              return;
+            }
+
+            // Telefon formatı: sadece rakamlar → +90...
+            let temizTelefon = telefon.toString().replace(/\D/g, '');
+            if (!temizTelefon.startsWith("90")) temizTelefon = "90" + temizTelefon;
+            temizTelefon = "+" + temizTelefon;
+
+            // Kategoriler: string ise virgülle ayır
+            if (typeof kategoriler === "string") {
+              kategoriler = kategoriler.split(",").map(k => k.trim()).filter(Boolean);
+            } else if (!Array.isArray(kategoriler)) {
+              kategoriler = [];
+            }
+
+            gecerliKisiler.push({
+              ad: ad.trim(),
+              telefon: temizTelefon,
+              email: email.trim(),
+              dogumTarihi: dogumTarihi,
+              not: not,
+              kategoriler: kategoriler
+            });
+          });
+
+          if (gecerliKisiler.length > 0) {
+            const kisiler = JSON.parse(localStorage.getItem('kisiler')) || [];
+            kisiler.push(...gecerliKisiler);
+            localStorage.setItem('kisiler', JSON.stringify(kisiler));
+            alert(`✅ ${gecerliKisiler.length} kişi Excel'den başarıyla eklendi!`);
+            gosterKisiler();
+          }
+
+          if (eksikler.length > 0) {
+            console.warn("Excel'de eksik veriler:", eksikler);
+            alert(`${eksikler.length} kişi eksik veri nedeniyle atlandı. Konsola bakın.`);
+          }
+
+        } catch (error) {
+          console.error("Excel okuma hatası:", error);
+          alert("❌ Excel dosyası okunamadı. Geçerli bir .xlsx dosyası olduğundan emin olun.");
+        }
+
+        input.value = ""; // Reset
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // --- Kategorileri Yükle ---
+    function kategorileriYukle() {
+      const container = document.getElementById('kategoriCheckboxes');
+      container.innerHTML = '';
+
+      const kategoriler = JSON.parse(localStorage.getItem('kategoriler')) || [];
+      if (kategoriler.length === 0) {
+        container.innerHTML = '<p><i>Henüz kategori yok</i></p>';
+        return;
+      }
+
+      kategoriler.forEach(kat => {
+        const item = document.createElement('div');
+        item.className = 'category-checkbox-item';
+        const safeId = `cat_${kat.ad.replace(/\s+/g, '_')}`;
+        item.innerHTML = `
+          <label for="${safeId}">
+            <input type="checkbox" value="${kat.ad}" id="${safeId}">
+            <span class="color-dot" style="background-color: ${kat.renk};"></span>
+            ${kat.ad}
+          </label>
+        `;
+        container.appendChild(item);
+      });
+
+      // Filtre dropdown güncelle
+      const filtre = document.getElementById('kategoriFiltre');
+      filtre.innerHTML = '<option value="">Tüm Kategoriler</option>';
+      kategoriler.forEach(kat => {
+        const opt = document.createElement('option');
+        opt.value = kat.ad;
+        opt.textContent = kat.ad;
+        filtre.appendChild(opt);
+      });
+    }
+
+    // --- Kişi Kaydet ---
+    function kisiKaydet() {
+      const ad = document.getElementById('ad').value.trim();
+      const telefon = document.getElementById('telefon').value.trim();
+      const email = document.getElementById('email').value;
+      const dogumTarihi = document.getElementById('dogumTarihi').value;
+      const not = document.getElementById('not').value;
+
+      const secilenler = Array.from(document.querySelectorAll('#kategoriCheckboxes input[type="checkbox"]:checked'))
+        .map(cb => cb.value);
+
+      if (!ad || !telefon) {
+        alert("Ad ve telefon zorunludur!");
+        return;
+      }
+
+      const kisi = { ad, telefon, email, dogumTarihi, not, kategoriler: secilenler };
+
+      const kisiler = JSON.parse(localStorage.getItem('kisiler')) || [];
+      const index = document.getElementById('kisiIndex').value;
+
+      if (index === '') {
+        kisiler.push(kisi);
+        alert(`✅ "${ad}" kişisi eklendi!`);
+      } else {
+        kisiler[index] = kisi;
+        alert(`✅ "${ad}" kişisi güncellendi!`);
+      }
+
+      localStorage.setItem('kisiler', JSON.stringify(kisiler));
+      kapatKisiModal();
+      gosterKisiler();
+    }
+
+    // --- Kişi Sil ---
+    function kisiSil() {
+      const index = document.getElementById('kisiIndex').value;
+      const kisiler = JSON.parse(localStorage.getItem('kisiler')) || [];
+      const ad = kisiler[index].ad;
+
+      if (confirm(`${ad} kişisini silmek istediğinize emin misiniz?`)) {
+        kisiler.splice(index, 1);
+        localStorage.setItem('kisiler', JSON.stringify(kisiler));
+        kapatKisiModal();
+        gosterKisiler();
+      }
+    }
+
+    // --- Kişileri Listele ---
+    function gosterKisiler() {
+      const list = document.getElementById('kisiListesi');
+      list.innerHTML = '';
+
+      const kisiler = JSON.parse(localStorage.getItem('kisiler')) || [];
+      const arama = (document.getElementById('searchInput')?.value || '').toLowerCase();
+      const filtreKategori = document.getElementById('kategoriFiltre')?.value;
+
+      if (kisiler.length === 0) {
+        list.innerHTML = '<p><i>Henüz kişi eklenmemiş.</i></p>';
+        return;
+      }
+
+      let gosterilen = 0;
+      kisiler.forEach((kisi, index) => {
+        const adArama = kisi.ad.toLowerCase().includes(arama);
+        const telArama = kisi.telefon.includes(arama);
+        const notArama = (kisi.not || '').toLowerCase().includes(arama);
+
+        if (!adArama && !telArama && !notArama) return;
+        if (filtreKategori && !kisi.kategoriler?.includes(filtreKategori)) return;
+
+        gosterilen++;
+
+        const card = document.createElement('div');
+        card.className = 'person-card';
+        card.onclick = () => acKisiModal(index);
+
+        let tagHTML = '';
+        (kisi.kategoriler || []).forEach(kat => {
+          const kategoriler = JSON.parse(localStorage.getItem('kategoriler')) || [];
+          const katBul = kategoriler.find(k => k.ad === kat);
+          const renk = katBul ? katBul.renk : '#25D366';
+          tagHTML += `<span class="tag" style="background-color:${renk}">${kat}</span>`;
+        });
+
+        card.innerHTML = `
+          <h3>${kisi.ad}</h3>
+          <div class="person-info">📱 ${kisi.telefon}</div>
+          ${kisi.email ? `<div class="person-info">✉️ ${kisi.email}</div>` : ''}
+          ${kisi.dogumTarihi ? `<div class="person-info">🎂 ${kisi.dogumTarihi}</div>` : ''}
+          <div class="person-tags">${tagHTML}</div>
+        `;
+
+        list.appendChild(card);
+      });
+
+      if (gosterilen === 0) {
+        list.innerHTML = '<p><i>Eşleşen kişi bulunamadı.</i></p>';
+      }
+    }
+
+    // --- Menü JS ---
+    const sidebar = document.getElementById('sidebar');
+    const menuToggle = document.getElementById('menuToggle');
+    const mainContent = document.getElementById('mainContent');
+    const overlay = document.getElementById('overlay');
+
+    let touchStartX = 0;
+
+    menuToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMenu();
+    });
+
+    overlay.addEventListener('click', () => {
+      toggleMenu();
+    });
+
+    document.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        touchStartX = e.touches[0].clientX;
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+      if (e.changedTouches.length === 0) return;
+      const touchEndX = e.changedTouches[0].clientX;
+      const diff = touchStartX - touchEndX;
+
+      if (touchStartX < 60) {
+        if (diff > 50) {
+          openMenu();
+        }
+      } else if (diff < -50 && sidebar.classList.contains('expanded')) {
+        closeMenu();
+      }
+    }, { passive: true });
+
+    function toggleMenu() {
+      const isExpanded = sidebar.classList.contains('expanded');
+      if (isExpanded) {
+        closeMenu();
+      } else {
+        openMenu();
+      }
+    }
+
+    function openMenu() {
+      sidebar.classList.add('expanded');
+      mainContent.classList.add('shifted');
+      overlay.classList.add('active');
+    }
+
+    function closeMenu() {
+      sidebar.classList.remove('expanded');
+      mainContent.classList.remove('shifted');
+      overlay.classList.remove('active');
+    }
+
+    function checkScreenSize() {
+      if (window.innerWidth > 768) {
+        openMenu();
+      } else {
+        closeMenu();
+      }
+    }
+
+    // --- Sayfa Yükleme ---
+    window.onload = () => {
+      checkScreenSize();
+      kategorileriYukle();
+      gosterKisiler();
+    };
+
+    window.addEventListener('resize', checkScreenSize);
+  </script>
+</body>
+</html>

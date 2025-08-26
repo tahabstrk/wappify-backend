@@ -5,52 +5,17 @@ import time
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory, session, redirect, url_for
 from functools import wraps
-import requests
+import requests, session
 from routes.settings_whatsapp import bp_settings
-app.register_blueprint(bp_settings)
 from services.whatsapp import send_whatsapp_text
-
-def send_whatsapp_text_cloudapi(phone_e164: str, text: str) -> bool:
-    """WhatsApp Business Cloud API ile metin mesajı gönderir (UI açmadan)."""
-    settings = load_json(SETTINGS_FILE, {})
-    token = settings.get("meta_access_token", "")
-    phone_number_id = settings.get("wa_phone_number_id", "")
-
-    if not token or not phone_number_id:
-        print("[CloudAPI] Eksik ayar: meta_access_token / wa_phone_number_id")
-        return False
-
-    url = f"https://graph.facebook.com/v20.0/{phone_number_id}/messages"
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": (phone_e164 or "").replace(" ", ""),
-        "type": "text",
-        "text": {"preview_url": False, "body": text or ""}
-    }
-
-    try:
-        r = requests.post(url, headers=headers, json=payload, timeout=15)
-        if r.status_code in (200, 201):
-            return True
-        print("[CloudAPI] Hata:", r.status_code, r.text)
-        return False
-    except Exception as e:
-        print("[CloudAPI] İstisna:", e)
-        return False
-
-# -------------------------------------------------
-# Flask app
-# -------------------------------------------------
+from config import APP_SECRET
+from routes.webhook_whatsapp import bp_webhook
 app = Flask(__name__, static_folder="wp", static_url_path="/wp")
-app.secret_key = "supersecret"  # değiştir
+app.secret_key = APP_SECRET
 
-# -------------------------------------------------
-# Basit kullanıcı doğrulama (hardcoded)
-# -------------------------------------------------
+app.register_blueprint(bp_settings)
+app.register_blueprint(bp_webhook)
+
 USERNAME = "admin"
 PASSWORD = "1234"
 

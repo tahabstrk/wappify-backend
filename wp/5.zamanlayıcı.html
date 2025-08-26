@@ -241,7 +241,32 @@
     let secilenResim = null;
     let secilenTon = null;
 
-    /* ===== Yardımcılar ===== */
+    // --- API yardımcıları ---
+    const API_BASE = ""; // aynı origin
+
+    async function postJSON(path, payload){
+      const r = await fetch(API_BASE + path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    }
+
+    function toE164TR(raw){
+      const d = (raw || "").replace(/\D/g, "");
+      if (!d) return "";
+      // 05xxxxxxxxx -> +905xxxxxxxxx
+      if (d.length === 11 && d.startsWith("05")) return "+9" + d;
+      if (d.length === 10 && d.startsWith("5"))  return "+90" + d;
+      if (d.length === 11 && d.startsWith("0"))  return "+9" + d.slice(1);
+      if (d.length === 12 && d.startsWith("90")) return "+" + d;
+      if (d.length === 10) return "+90" + d;
+      return d.startsWith("+") ? d : "+" + d;
+    }
+
+
     function normalizePhoneTR(raw){
       const digits = (raw||'').replace(/\D/g,'');
       if(!digits) return '';
@@ -400,33 +425,22 @@
       gosterGorevler();
     }
 
-    async function hemenGonder() {
-      const kategoriAdi = document.getElementById('kategori').value;
-      const mesaj = document.getElementById('mesaj').value.trim();
-      if (!mesaj) { alert("Mesaj içeriği gerekli!"); return; }
+    async function gorevCalistir(index){
+      const gorevler = JSON.parse(localStorage.getItem('zamanlananGorevler')) || [];
+      const g = gorevler[index]; if(!g) return;
 
-      const kisiler = JSON.parse(localStorage.getItem('kisiler')) || [];
-      const hedefKisiler = kisiler.filter(kisi => !kategoriAdi || (kisi.kategoriler && kisi.kategoriler.includes(kategoriAdi)));
-      if (hedefKisiler.length === 0) { alert("Seçilen kategoriye ait kişi bulunamadı."); return; }
-
-      if (hedefKisiler.length > 10) {
-        const onay = confirm(`${hedefKisiler.length} kişiye mesaj gönderilecek. Devam edilsin mi?`);
-        if (!onay) return;
-      }
-
-      // Sekme engeline takılmamak için küçük gecikmeyle sırala
-      for (let i=0;i<hedefKisiler.length;i++){
-        const kisi = hedefKisiler[i];
-        const sablonluMesaj = mesaj
-          .replace(/\{isim\}/g, kisi.ad)
-          .replace(/\{tarih\}/g, new Date().toLocaleString())
-          .replace(/\{kategori\}/g, kategoriAdi || "Tümü")
-          .replace(/\{telefon\}/g, kisi.telefon);
-
-        const wa = normalizePhoneTR(kisi.telefon); // 05.. → 905..
-        const url = `https://wa.me/${wa}?text=${encodeURIComponent(sablonluMesaj)}`;
-        window.open(url, '_blank');
-        await delay(700);
+      try{
+        await postJSON("/api/send_bulk", {
+          items: [{ to: toE164TR(g.telefon), text: g.mesaj }],
+          image: g.resim || null
+        });
+        g.durum = 'gönderildi';
+        localStorage.setItem('zamanlananGorevler', JSON.stringify(gorevler));
+        gosterGorevler();
+        alert("✅ Görev kuyruğa alındı.");
+      }catch(err){
+        console.error(err);
+        alert("❌ Kuyruğa alınamadı.");
       }
     }
 
@@ -485,21 +499,31 @@
     }
 
     /* ===== Arka Plan Kontrolü (timer) ===== */
-    function kontrolEt() {
+    async function kontrolEt() {
       const gorevler = JSON.parse(localStorage.getItem('zamanlananGorevler')) || [];
       const simdi = new Date();
-      const gonderilecekler = gorevler.filter(g => g.durum === "bekliyor" && new Date(g.zaman) <= simdi);
 
-      gonderilecekler.forEach(gorev => {
-        const wa = normalizePhoneTR(gorev.telefon);
-        const url = `https://wa.me/${wa}?text=${encodeURIComponent(gorev.mesaj)}`;
-        window.open(url, '_blank');
-        gorev.durum = "gönderildi";
-      });
+      const gonderilecekler = gorevler
+        .filter(g => g.durum === "bekliyor" && new Date(g.zaman) <= simdi);
 
-      if (gonderilecekler.length > 0) {
+      if (gonderilecekler.length === 0) return;
+
+      const items = gonderilecekler.map(g => ({
+        to: toE164TR(g.telefon),
+        text: g.mesaj
+      }));
+
+      try{
+        const res = await postJSON("/api/send_bulk", {
+          items, image: null
+        });
+        // Başarılı say: durumlarını güncelle
+        gonderilecekler.forEach(g => g.durum = "gönderildi");
         localStorage.setItem('zamanlananGorevler', JSON.stringify(gorevler));
         gosterGorevler();
+        console.log("Kuyruğa alındı:", res);
+      }catch(e){
+        console.error("Zamanlı gönderim kuyruğa alınamadı", e);
       }
     }
 
